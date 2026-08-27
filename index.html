@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Shorts Automation Uploader</title>
+<style>
+:root{
+  --bg:#0f1117; --panel:#171a24; --fg:#e6e8f0; --dim:#9aa1b8;
+  --accent:#78c8ff; --border:#252a38;
+}
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--bg); color:var(--fg);
+  font:16px/1.75 -apple-system,BlinkMacSystemFont,"Segoe UI","Malgun Gothic",sans-serif;
+}
+.wrap{max-width:760px; margin:0 auto; padding:56px 24px 96px}
+header{border-bottom:1px solid var(--border); padding-bottom:24px; margin-bottom:40px}
+h1{font-size:30px; margin:0 0 8px; letter-spacing:-.02em}
+h2{font-size:20px; margin:40px 0 12px; color:var(--accent)}
+h3{font-size:16px; margin:24px 0 8px}
+p,li{color:var(--fg)}
+.lead{color:var(--dim); margin:0}
+nav{margin-top:20px; display:flex; gap:18px; flex-wrap:wrap}
+nav a{color:var(--accent); text-decoration:none; font-size:14px}
+nav a:hover{text-decoration:underline}
+.meta{color:var(--dim); font-size:14px}
+.card{background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:20px 24px; margin:20px 0}
+code{background:var(--panel); border:1px solid var(--border); border-radius:5px; padding:1px 6px; font-size:14px}
+ul{padding-left:22px}
+li{margin:6px 0}
+.ko{color:var(--dim); font-size:14px; border-left:2px solid var(--border); padding-left:14px; margin:10px 0 0}
+footer{margin-top:64px; padding-top:24px; border-top:1px solid var(--border); color:var(--dim); font-size:14px}
+a{color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>Shorts Automation Uploader</h1>
+  <p class="lead">A personal tool that generates short educational videos about C++ programming and uploads them to the owner's own YouTube channel.</p>
+  <nav>
+    <a href="index.html">Home</a>
+    <a href="privacy.html">Privacy Policy</a>
+    <a href="terms.html">Terms of Service</a>
+  </nav>
+</header>
+
+<h2>What this application does</h2>
+<p>
+  Shorts Automation Uploader is a command-line tool run by a single individual on their own computer.
+  It produces short-form educational videos that teach C++ programming syntax, and publishes them to
+  a YouTube channel owned by that same individual.
+</p>
+
+<h3>How a video is made</h3>
+<ul>
+  <li>A C++ source file is compiled locally with the Microsoft Visual C++ compiler.</li>
+  <li>The compiled program is executed and its real console output is captured.</li>
+  <li>Slides showing the source code and its actual output are rendered as images.</li>
+  <li>A Korean narration track is synthesized with a text-to-speech engine.</li>
+  <li>The images and audio are encoded into a vertical 1080&times;1920 MP4 file with FFmpeg.</li>
+  <li>The finished video is uploaded to the owner's YouTube channel.</li>
+</ul>
+
+<h2>Use of the YouTube API Services</h2>
+<p>
+  This application uses YouTube API Services. By using it, you agree to be bound by the
+  <a href="https://www.youtube.com/t/terms" target="_blank" rel="noopener">YouTube Terms of Service</a>.
+</p>
+<div class="card">
+  <p style="margin:0 0 10px"><strong>API endpoints used</strong></p>
+  <ul style="margin:0">
+    <li><code>videos.insert</code> &mdash; upload a generated video to the authorized channel</li>
+    <li><code>channels.list</code> &mdash; confirm which channel the authorization belongs to</li>
+  </ul>
+</div>
+<p>
+  The application does not read, collect, analyze, or display data belonging to any other YouTube
+  user or channel. It only writes to the single channel that the operator has explicitly authorized.
+</p>
+
+<h2>Who uses it</h2>
+<p>
+  The application has exactly one user: its owner. It is not distributed, sold, or offered as a
+  service to anyone else, and it has no public sign-up, no server, and no shared backend.
+  It runs entirely on the owner's local machine.
+</p>
+
+<h2>Managing access</h2>
+<p>
+  Authorization can be revoked at any time from the
+  <a href="https://myaccount.google.com/permissions" target="_blank" rel="noopener">Google Account permissions page</a>.
+  Revoking access immediately and permanently stops the application from uploading anything.
+</p>
+
+<h2>Contact</h2>
+<p>Questions about this application: <a href="mailto:windwolfclan@gmail.com">windwolfclan@gmail.com</a></p>
+
+<footer>
+  <p>Shorts Automation Uploader &mdash; a personal, non-commercial project.<br>
+  Google Cloud project ID: <code>shorts-automation-506801</code></p>
+</footer>
+</div>
+</body>
+</html>

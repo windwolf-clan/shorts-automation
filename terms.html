@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Terms of Service &mdash; Shorts Automation Uploader</title>
+<style>
+:root{
+  --bg:#0f1117; --panel:#171a24; --fg:#e6e8f0; --dim:#9aa1b8;
+  --accent:#78c8ff; --border:#252a38;
+}
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--bg); color:var(--fg);
+  font:16px/1.75 -apple-system,BlinkMacSystemFont,"Segoe UI","Malgun Gothic",sans-serif;
+}
+.wrap{max-width:760px; margin:0 auto; padding:56px 24px 96px}
+header{border-bottom:1px solid var(--border); padding-bottom:24px; margin-bottom:40px}
+h1{font-size:30px; margin:0 0 8px; letter-spacing:-.02em}
+h2{font-size:20px; margin:40px 0 12px; color:var(--accent)}
+h3{font-size:16px; margin:24px 0 8px}
+p,li{color:var(--fg)}
+.lead{color:var(--dim); margin:0}
+nav{margin-top:20px; display:flex; gap:18px; flex-wrap:wrap}
+nav a{color:var(--accent); text-decoration:none; font-size:14px}
+nav a:hover{text-decoration:underline}
+.meta{color:var(--dim); font-size:14px}
+.card{background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:20px 24px; margin:20px 0}
+code{background:var(--panel); border:1px solid var(--border); border-radius:5px; padding:1px 6px; font-size:14px}
+ul{padding-left:22px}
+li{margin:6px 0}
+.ko{color:var(--dim); font-size:14px; border-left:2px solid var(--border); padding-left:14px; margin:10px 0 0}
+footer{margin-top:64px; padding-top:24px; border-top:1px solid var(--border); color:var(--dim); font-size:14px}
+a{color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>Terms of Service</h1>
+  <p class="lead">Shorts Automation Uploader</p>
+  <p class="meta">Last updated: 27 August 2026</p>
+  <nav>
+    <a href="index.html">Home</a>
+    <a href="privacy.html">Privacy Policy</a>
+    <a href="terms.html">Terms of Service</a>
+  </nav>
+</header>
+
+<h2>1. Scope</h2>
+<p>
+  Shorts Automation Uploader ("the application") is a personal, non-commercial command-line tool.
+  It is operated solely by its owner on their own computer and is not offered, distributed, or
+  licensed to any other party. These terms describe how the application is used and what it does.
+</p>
+<p class="ko">
+  본 애플리케이션은 개발자 본인만 사용하는 비상업적 개인 도구이며, 타인에게 배포하거나 제공하지 않습니다.
+</p>
+
+<h2>2. What the application does</h2>
+<p>
+  The application compiles C++ source files locally, captures the real output of the compiled
+  programs, renders that source and output into short vertical videos with synthesized narration,
+  and uploads the finished videos to a YouTube channel owned by the operator.
+</p>
+
+<h2>3. YouTube API Services</h2>
+<p>
+  The application uses YouTube API Services. By using it, the operator agrees to be bound by the
+  <a href="https://www.youtube.com/t/terms" target="_blank" rel="noopener">YouTube Terms of Service</a>
+  and acknowledges the
+  <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Google Privacy Policy</a>.
+</p>
+<p>The application accesses YouTube only to:</p>
+<ul>
+  <li>upload videos to the single channel the operator has authorized, and</li>
+  <li>read that same channel's own title and ID to confirm the correct account is connected.</li>
+</ul>
+<p>
+  It does not access, collect, store, or display data belonging to any other channel or viewer.
+</p>
+
+<h2>4. Acceptable use</h2>
+<p>The application is used in a manner consistent with YouTube's policies. In particular:</p>
+<ul>
+  <li>All uploaded content is original, created programmatically from the operator's own C++ source code.</li>
+  <li>Uploads go only to a channel the operator owns and has authorized.</li>
+  <li>The application does not scrape YouTube, automate the YouTube website, simulate user interaction, or attempt to circumvent any API quota or restriction.</li>
+  <li>Access is obtained exclusively through the official YouTube Data API with the operator's own OAuth authorization.</li>
+  <li>Upload volume is kept within the API quota allocated to the project.</li>
+</ul>
+
+<h2>5. Content</h2>
+<p>
+  Videos produced by the application are educational material about C++ programming. The operator is
+  responsible for the content of everything uploaded to their channel, and for its compliance with
+  YouTube's Community Guidelines and applicable copyright law.
+</p>
+
+<h2>6. Revoking access</h2>
+<p>
+  Authorization may be withdrawn at any time from the
+  <a href="https://myaccount.google.com/permissions" target="_blank" rel="noopener">Google Account permissions page</a>.
+  Once revoked, the application can no longer access YouTube in any form.
+</p>
+
+<h2>7. No warranty</h2>
+<p>
+  The application is provided as-is, without warranty of any kind. It is a personal project with no
+  service commitment, no availability guarantee, and no support obligation.
+</p>
+
+<h2>8. Changes to these terms</h2>
+<p>
+  Any revision to these terms will be published on this page with an updated date above.
+</p>
+
+<h2>9. Contact</h2>
+<p><a href="mailto:windwolfclan@gmail.com">windwolfclan@gmail.com</a></p>
+
+<footer>
+  <p>Shorts Automation Uploader &mdash; a personal, non-commercial project.<br>
+  Google Cloud project ID: <code>shorts-automation-506801</code></p>
+</footer>
+</div>
+</body>
+</html>
