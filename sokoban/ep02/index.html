@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Win32로 소코반 만들기 2편 - 키보드 입력 받기</title>
+<meta name="description" content="Win32 API로 소코반을 만드는 시리즈 2편입니다. WM_KEYDOWN 메시지로 방향키 입력을 받아 좌표를 움직이고, 제목 표시줄에 표시해 확인합니다. 가상 키 코드와 wParam, ESC로 창을 닫는 방법까지 다룹니다.">
+<link rel="canonical" href="https://shorts.windwolf.co.kr/sokoban/ep02/">
+<meta property="og:title" content="Win32로 소코반 만들기 2편 - 키보드 입력 받기">
+<meta property="og:description" content="Win32 API로 소코반을 만드는 시리즈 2편입니다. WM_KEYDOWN 메시지로 방향키 입력을 받아 좌표를 움직이고, 제목 표시줄에 표시해 확인합니다. 가상 키 코드와 wParam, ESC로 창을 닫는 방법까지 다룹니다.">
+<meta property="og:url" content="https://shorts.windwolf.co.kr/sokoban/ep02/">
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<div class="wrap">
+<div class="crumb"><a href="../">Win32로 소코반 만들기</a> · 2편</div>
+<h1>2편 · 키보드 입력 받기</h1>
+<p class="lead">Win32 API로 소코반을 만드는 시리즈 2편입니다. WM_KEYDOWN 메시지로 방향키 입력을 받아 좌표를 움직이고, 제목 표시줄에 표시해 확인합니다. 가상 키 코드와 wParam, ESC로 창을 닫는 방법까지 다룹니다.</p>
+<div class="btns"><span class="btn" aria-disabled="true">영상 공개 예정</span><a class="btn" href="main.cpp" download>main.cpp 받기</a><a class="btn" href="#code-section">전체 코드로</a></div>
+<h2>실행 결과</h2><figure class="shot" style="margin:0"><img src="run.png" alt="2편 코드를 실행한 창" loading="lazy"><figcaption>이 페이지의 main.cpp 를 빌드해 실행한 화면</figcaption></figure>
+<h2>영상 속 실행 장면</h2><p>영상에서 직접 실행해 본 장면들입니다.</p><figure class="scene"><h3>실행해 보면 — 아무 변화가 없다</h3><img src="shot2.png" alt="실행해 보면 — 아무 변화가 없다" loading="lazy"><figcaption>여기서 실행하면 어떻게 보일까요? 방향키를 눌러도 화면은 그대로입니다. 좌표는 분명히 바뀌고 있지만, 그 값을 보여 주는 코드가 아직 없기 때문입니다. 그림을 그리는 건 다음 편이니, 오늘은 제목 표시줄에 숫자를 찍어 확인하겠습니다.</figcaption></figure><figure class="scene"><h3>방향키 → → → ↓ ↓</h3><img src="shot3.png" alt="방향키 → → → ↓ ↓" loading="lazy"><figcaption>다시 실행해서 오른쪽 세 번, 아래 두 번을 눌렀습니다. 제목 표시줄의 좌표가 그대로 따라옵니다. 키를 누르고 있으면 메시지가 반복해서 오기 때문에 좌표도 계속 늘어납니다.</figcaption></figure><figure class="scene"><h3>ESC를 누르면</h3><pre class="term">&gt; 방향키 → → → ↓ ↓  입력
+&gt; ESC 키 입력
+
+창이 닫히고 프로세스 종료 (종료 코드 0)
+&gt; tasklist | findstr sokoban
+(결과 없음)</pre><figcaption>실행해서 방향키를 몇 번 누르고 VK_ESCAPE를 누르면, 창이 닫히고 프로세스도 함께 사라집니다. 지난 편에서 만든 종료 처리가 그대로 동작한다는 확인입니다.</figcaption></figure>
+<h2 id="code-section">전체 코드</h2><p>1편 코드에서 <b>24줄 추가</b>, <b>0줄 변경</b>되었습니다. 표시된 줄이 이번 편에서 바뀐 부분입니다.</p><div class="codebox"><div class="codehead"><span><b>main.cpp</b> · 64줄 <span class="legend"><i style="background:var(--addb)"></i>추가<i style="background:var(--chgb)"></i>변경</span></span><span class="btns" style="margin:0"><button class="btn" onclick="toggleMarks(this)">변경 표시 끄기</button><button class="btn" onclick="copyCode('raw',this)">복사</button><a class="btn" href="main.cpp" download>받기</a></span></div><pre id="code"><span class="l "><span class="n">1</span><span class="pp">#</span><span class="pp">include</span> <span class="pp">&lt;windows.h&gt;</span></span><span class="l add"><span class="n">2</span><span class="pp">#</span><span class="pp">include</span> <span class="pp">&lt;string&gt;</span></span><span class="l add"><span class="n">3</span></span><span class="l add"><span class="n">4</span><span class="ty">int</span> g_playerX = <span class="nm">0</span>;</span><span class="l add"><span class="n">5</span><span class="ty">int</span> g_playerY = <span class="nm">0</span>;</span><span class="l add"><span class="n">6</span></span><span class="l add"><span class="n">7</span><span class="ty">void</span> <span class="fn">UpdateTitle</span>(<span class="ty">HWND</span> hWnd)</span><span class="l add"><span class="n">8</span>{</span><span class="l add"><span class="n">9</span>    std::wstring title = <span class="str">L</span><span class="str">&quot;</span><span class="str">Sokoban - x: </span><span class="str">&quot;</span> + std::<span class="fn">to_wstring</span>(g_playerX)</span><span class="l add"><span class="n">10</span>                       + <span class="str">L</span><span class="str">&quot;</span><span class="str">, y: </span><span class="str">&quot;</span> + std::<span class="fn">to_wstring</span>(g_playerY);</span><span class="l add"><span class="n">11</span>    <span class="fn">SetWindowTextW</span>(hWnd, title.<span class="fn">c_str</span>());</span><span class="l add"><span class="n">12</span>}</span><span class="l "><span class="n">13</span></span><span class="l "><span class="n">14</span><span class="ty">LRESULT</span> <span class="cs">CALLBACK</span> <span class="fn">WndProc</span>(<span class="ty">HWND</span> hWnd, <span class="ty">UINT</span> msg, <span class="ty">WPARAM</span> wParam, <span class="ty">LPARAM</span> lParam)</span><span class="l "><span class="n">15</span>{</span><span class="l "><span class="n">16</span>    <span class="kw">switch</span> (msg)</span><span class="l "><span class="n">17</span>    {</span><span class="l add"><span class="n">18</span>    <span class="kw">case</span> <span class="cs">WM_KEYDOWN</span>:</span><span class="l add"><span class="n">19</span>        <span class="kw">switch</span> (wParam)</span><span class="l add"><span class="n">20</span>        {</span><span class="l add"><span class="n">21</span>        <span class="kw">case</span> <span class="cs">VK_LEFT</span>:   g_playerX--; <span class="kw">break</span>;</span><span class="l add"><span class="n">22</span>        <span class="kw">case</span> <span class="cs">VK_RIGHT</span>:  g_playerX++; <span class="kw">break</span>;</span><span class="l add"><span class="n">23</span>        <span class="kw">case</span> <span class="cs">VK_UP</span>:     g_playerY--; <span class="kw">break</span>;</span><span class="l add"><span class="n">24</span>        <span class="kw">case</span> <span class="cs">VK_DOWN</span>:   g_playerY++; <span class="kw">break</span>;</span><span class="l add"><span class="n">25</span>        <span class="kw">case</span> <span class="cs">VK_ESCAPE</span>: <span class="fn">DestroyWindow</span>(hWnd); <span class="kw">return</span> <span class="nm">0</span>;</span><span class="l add"><span class="n">26</span>        }</span><span class="l add"><span class="n">27</span>        <span class="fn">UpdateTitle</span>(hWnd);</span><span class="l add"><span class="n">28</span>        <span class="kw">return</span> <span class="nm">0</span>;</span><span class="l add"><span class="n">29</span></span><span class="l "><span class="n">30</span>    <span class="kw">case</span> <span class="cs">WM_DESTROY</span>:</span><span class="l "><span class="n">31</span>        <span class="fn">PostQuitMessage</span>(<span class="nm">0</span>);</span><span class="l "><span class="n">32</span>        <span class="kw">return</span> <span class="nm">0</span>;</span><span class="l "><span class="n">33</span>    }</span><span class="l "><span class="n">34</span>    <span class="kw">return</span> <span class="fn">DefWindowProcW</span>(hWnd, msg, wParam, lParam);</span><span class="l "><span class="n">35</span>}</span><span class="l "><span class="n">36</span></span><span class="l "><span class="n">37</span><span class="ty">int</span> <span class="cs">WINAPI</span> <span class="fn">wWinMain</span>(<span class="ty">HINSTANCE</span> hInstance, <span class="ty">HINSTANCE</span> hPrevInstance,</span><span class="l "><span class="n">38</span>                    <span class="ty">PWSTR</span> pCmdLine, <span class="ty">int</span> nCmdShow)</span><span class="l "><span class="n">39</span>{</span><span class="l "><span class="n">40</span>    <span class="ty">WNDCLASSEXW</span> wc = {};</span><span class="l "><span class="n">41</span>    wc.cbSize = <span class="kw">sizeof</span>(wc);</span><span class="l "><span class="n">42</span>    wc.lpfnWndProc = WndProc;</span><span class="l "><span class="n">43</span>    wc.hInstance = hInstance;</span><span class="l "><span class="n">44</span>    wc.hCursor = <span class="fn">LoadCursorW</span>(nullptr, <span class="cs">IDC_ARROW</span>);</span><span class="l "><span class="n">45</span>    wc.hbrBackground = (<span class="ty">HBRUSH</span>)(<span class="cs">COLOR_WINDOW</span> + <span class="nm">1</span>);</span><span class="l "><span class="n">46</span>    wc.lpszClassName = <span class="str">L</span><span class="str">&quot;</span><span class="str">SokobanWindow</span><span class="str">&quot;</span>;</span><span class="l "><span class="n">47</span>    <span class="fn">RegisterClassExW</span>(&amp;wc);</span><span class="l "><span class="n">48</span></span><span class="l "><span class="n">49</span>    <span class="ty">HWND</span> hWnd = <span class="fn">CreateWindowExW</span>(<span class="nm">0</span>, <span class="str">L</span><span class="str">&quot;</span><span class="str">SokobanWindow</span><span class="str">&quot;</span>, <span class="str">L</span><span class="str">&quot;</span><span class="str">Sokoban</span><span class="str">&quot;</span>,</span><span class="l "><span class="n">50</span>                                <span class="cs">WS_OVERLAPPEDWINDOW</span>,</span><span class="l "><span class="n">51</span>                                <span class="cs">CW_USEDEFAULT</span>, <span class="cs">CW_USEDEFAULT</span>, <span class="nm">800</span>, <span class="nm">600</span>,</span><span class="l "><span class="n">52</span>                                nullptr, nullptr, hInstance, nullptr);</span><span class="l add"><span class="n">53</span>    <span class="fn">UpdateTitle</span>(hWnd);</span><span class="l "><span class="n">54</span>    <span class="fn">ShowWindow</span>(hWnd, nCmdShow);</span><span class="l "><span class="n">55</span>    <span class="fn">UpdateWindow</span>(hWnd);</span><span class="l "><span class="n">56</span></span><span class="l "><span class="n">57</span>    <span class="ty">MSG</span> msg;</span><span class="l "><span class="n">58</span>    <span class="kw">while</span> (<span class="fn">GetMessageW</span>(&amp;msg, nullptr, <span class="nm">0</span>, <span class="nm">0</span>) &gt; <span class="nm">0</span>)</span><span class="l "><span class="n">59</span>    {</span><span class="l "><span class="n">60</span>        <span class="fn">TranslateMessage</span>(&amp;msg);</span><span class="l "><span class="n">61</span>        <span class="fn">DispatchMessageW</span>(&amp;msg);</span><span class="l "><span class="n">62</span>    }</span><span class="l "><span class="n">63</span>    <span class="kw">return</span> (<span class="ty">int</span>)msg.wParam;</span><span class="l "><span class="n">64</span>}</span></pre></div><textarea id="raw" hidden>#include &lt;windows.h&gt;
+#include &lt;string&gt;
+
+int g_playerX = 0;
+int g_playerY = 0;
+
+void UpdateTitle(HWND hWnd)
+{
+    std::wstring title = L&quot;Sokoban - x: &quot; + std::to_wstring(g_playerX)
+                       + L&quot;, y: &quot; + std::to_wstring(g_playerY);
+    SetWindowTextW(hWnd, title.c_str());
+}
+
+LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+    switch (msg)
+    {
+    case WM_KEYDOWN:
+        switch (wParam)
+        {
+        case VK_LEFT:   g_playerX--; break;
+        case VK_RIGHT:  g_playerX++; break;
+        case VK_UP:     g_playerY--; break;
+        case VK_DOWN:   g_playerY++; break;
+        case VK_ESCAPE: DestroyWindow(hWnd); return 0;
+        }
+        UpdateTitle(hWnd);
+        return 0;
+
+    case WM_DESTROY:
+        PostQuitMessage(0);
+        return 0;
+    }
+    return DefWindowProcW(hWnd, msg, wParam, lParam);
+}
+
+int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
+                    PWSTR pCmdLine, int nCmdShow)
+{
+    WNDCLASSEXW wc = {};
+    wc.cbSize = sizeof(wc);
+    wc.lpfnWndProc = WndProc;
+    wc.hInstance = hInstance;
+    wc.hCursor = LoadCursorW(nullptr, IDC_ARROW);
+    wc.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
+    wc.lpszClassName = L&quot;SokobanWindow&quot;;
+    RegisterClassExW(&amp;wc);
+
+    HWND hWnd = CreateWindowExW(0, L&quot;SokobanWindow&quot;, L&quot;Sokoban&quot;,
+                                WS_OVERLAPPEDWINDOW,
+                                CW_USEDEFAULT, CW_USEDEFAULT, 800, 600,
+                                nullptr, nullptr, hInstance, nullptr);
+    UpdateTitle(hWnd);
+    ShowWindow(hWnd, nCmdShow);
+    UpdateWindow(hWnd);
+
+    MSG msg;
+    while (GetMessageW(&amp;msg, nullptr, 0, 0) &gt; 0)
+    {
+        TranslateMessage(&amp;msg);
+        DispatchMessageW(&amp;msg);
+    }
+    return (int)msg.wParam;
+}
+</textarea>
+<h2>빌드 방법</h2><p><b>Visual Studio</b></p><ol class="steps"><li>새 프로젝트 → <b>Windows 데스크톱 애플리케이션</b> 또는 <b>빈 프로젝트</b></li><li>생성된 소스를 지우고 이 페이지의 <code class="inl">main.cpp</code> 를 추가</li><li>빈 프로젝트라면 속성 → 링커 → 시스템 → 하위 시스템을 <b>창(/SUBSYSTEM:WINDOWS)</b> 으로</li><li>Ctrl+F5 로 실행</li></ol><p><b>명령줄</b> (x64 Native Tools Command Prompt)</p><div class="cmd"><pre id="clcmd">cl /EHsc /std:c++20 /utf-8 /DUNICODE /D_UNICODE main.cpp /link /SUBSYSTEM:WINDOWS user32.lib gdi32.lib</pre></div><p class="lead" style="font-size:14px;margin-top:10px">코드는 흐름을 보여 주려고 에러 처리를 생략했습니다. 실제 프로그램에서는 RegisterClassExW·CreateWindowExW 의 반환값을 확인하세요.</p>
+<h2>영상 챕터</h2><ul class="chapters"><li><span class="t">0:00</span>인트로</li><li><span class="t">0:12</span>메시지가 오는 길</li><li><span class="t">0:33</span>플레이어 좌표</li><li><span class="t">0:47</span>WM_KEYDOWN 처리</li><li><span class="t">1:13</span>키 메시지 두 가지</li><li><span class="t">2:04</span>제목 표시줄에 좌표 표시</li><li><span class="t">3:14</span>ESC로 종료</li><li><span class="t">3:46</span>정리</li></ul>
+<div class="nav"><a class="btn" href="../ep01/">← 1편 빈 창 띄우기</a><span></span></div>
+<footer>windwolf_clan · <a href="../">Win32로 소코반 만들기</a></footer>
+</div>
+<script>
+function copyCode(id,btn){navigator.clipboard.writeText(document.getElementById(id).textContent).then(()=>{
+ const t=btn.textContent;btn.textContent='복사됨';setTimeout(()=>btn.textContent=t,1200)})}
+function toggleMarks(btn){const p=document.getElementById('code');p.classList.toggle('nomark');
+ btn.textContent=p.classList.contains('nomark')?'변경 표시 켜기':'변경 표시 끄기'}
+</script>
+</body>
+</html>
