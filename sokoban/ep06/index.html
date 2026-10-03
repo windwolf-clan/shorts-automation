@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Win32로 소코반 만들기 6편 - 클리어 판정과 재시작</title>
+<meta name="description" content="Win32 API로 소코반을 만드는 시리즈 6편입니다. 맵을 다시 읽는 것만으로 재시작을 구현하고, 상태를 따로 세지 않고 맵을 훑는 방식으로 클리어를 판정합니다. GDI로 글자를 그리는 방법도 함께 다룹니다.">
+<link rel="canonical" href="https://shorts.windwolf.co.kr/sokoban/ep06/">
+<meta property="og:title" content="Win32로 소코반 만들기 6편 - 클리어 판정과 재시작">
+<meta property="og:description" content="Win32 API로 소코반을 만드는 시리즈 6편입니다. 맵을 다시 읽는 것만으로 재시작을 구현하고, 상태를 따로 세지 않고 맵을 훑는 방식으로 클리어를 판정합니다. GDI로 글자를 그리는 방법도 함께 다룹니다.">
+<meta property="og:url" content="https://shorts.windwolf.co.kr/sokoban/ep06/">
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<div class="wrap">
+<div class="crumb"><a href="../">Win32로 소코반 만들기</a> · 6편</div>
+<h1>6편 · 클리어 판정과 재시작</h1>
+<p class="lead">Win32 API로 소코반을 만드는 시리즈 6편입니다. 맵을 다시 읽는 것만으로 재시작을 구현하고, 상태를 따로 세지 않고 맵을 훑는 방식으로 클리어를 판정합니다. GDI로 글자를 그리는 방법도 함께 다룹니다.</p>
+<div class="btns"><a class="btn primary" href="https://www.youtube.com/watch?v=t0VH3j9FwDU">▶ 영상 보기</a><a class="btn" href="main.cpp" download>main.cpp 받기</a><a class="btn" href="#code-section">전체 코드로</a></div>
+<h2>영상 속 실행 장면</h2><p>영상에서 직접 실행해 본 장면들입니다.</p><figure class="scene"><h3>망친 판</h3><img src="shot1.png" alt="망친 판" loading="lazy"><figcaption>상자를 몇 번 아무렇게나 밀어 판을 망쳐 봤습니다. 상자 하나가 벽에 붙어서 이제 그 방향으로는 뺄 수 없는 상태입니다.</figcaption></figure><figure class="scene"><h3>R 을 누르면</h3><img src="shot2.png" alt="R 을 누르면" loading="lazy"><figcaption>알 키를 누르면 처음 상태로 돌아옵니다. 소코반에서 다시 시작은 선택이 아니라 필수입니다. 상자를 구석으로 밀어 넣는 순간 그 판은 풀 수 없게 되니까요.</figcaption></figure><figure class="scene"><h3>다 올렸는데 반응이 없다</h3><img src="shot3.png" alt="다 올렸는데 반응이 없다" loading="lazy"><figcaption>이번에는 정답 순서를 넣어 상자를 전부 올려 봤습니다. 상자는 초록으로 바뀌었지만 그뿐입니다. 판이 끝났다는 것을 프로그램은 모릅니다. 끝났는지 확인하는 코드가 없기 때문입니다.</figcaption></figure><figure class="scene"><h3>클리어!</h3><img src="shot4.png" alt="클리어!" loading="lazy"><figcaption>다시 정답을 넣어 보면, 마지막 상자가 올라가는 순간 띠가 나타납니다. 알 키를 누르면 처음부터 다시 할 수 있습니다.</figcaption></figure>
+<h2 id="code-section">전체 코드</h2><p>5편 코드에서 <b>31줄 추가</b>, <b>0줄 변경</b>되었습니다. 표시된 줄이 이번 편에서 바뀐 부분입니다.</p><div class="codebox"><div class="codehead"><span><b>main.cpp</b> · 263줄 <span class="legend"><i style="background:var(--addb)"></i>추가<i style="background:var(--chgb)"></i>변경</span></span><span class="btns" style="margin:0"><button class="btn" onclick="toggleMarks(this)">변경 표시 끄기</button><button class="btn" onclick="copyCode('raw',this)">복사</button><a class="btn" href="main.cpp" download>받기</a></span></div><pre id="code"><span class="l "><span class="n">1</span><span class="pp">#</span><span class="pp">include</span> <span class="pp">&lt;windows.h&gt;</span></span><span class="l "><span class="n">2</span></span><span class="l "><span class="n">3</span><span class="kw">const</span> <span class="ty">int</span> <span class="cs">TILE</span> = <span class="nm">80</span>;</span><span class="l "><span class="n">4</span><span class="kw">const</span> <span class="ty">int</span> <span class="cs">MAP_W</span> = <span class="nm">9</span>;</span><span class="l "><span class="n">5</span><span class="kw">const</span> <span class="ty">int</span> <span class="cs">MAP_H</span> = <span class="nm">6</span>;</span><span class="l "><span class="n">6</span></span><span class="l "><span class="n">7</span><span class="kw">const</span> <span class="ty">char</span>* <span class="cs">LEVEL</span>[<span class="cs">MAP_H</span>] = {</span><span class="l "><span class="n">8</span>    <span class="str">&quot;</span><span class="str">#########</span><span class="str">&quot;</span>,</span><span class="l "><span class="n">9</span>    <span class="str">&quot;</span><span class="str">#  .#   #</span><span class="str">&quot;</span>,</span><span class="l "><span class="n">10</span>    <span class="str">&quot;</span><span class="str"># # .   #</span><span class="str">&quot;</span>,</span><span class="l "><span class="n">11</span>    <span class="str">&quot;</span><span class="str"># $ .$$ #</span><span class="str">&quot;</span>,</span><span class="l "><span class="n">12</span>    <span class="str">&quot;</span><span class="str">## ##@ ##</span><span class="str">&quot;</span>,</span><span class="l "><span class="n">13</span>    <span class="str">&quot;</span><span class="str">#########</span><span class="str">&quot;</span>,</span><span class="l "><span class="n">14</span>};</span><span class="l "><span class="n">15</span></span><span class="l "><span class="n">16</span><span class="kw">const</span> <span class="ty">COLORREF</span> <span class="cs">FLOOR_COLOR</span>       = <span class="fn">RGB</span>(<span class="nm">222</span>, <span class="nm">214</span>, <span class="nm">196</span>);</span><span class="l "><span class="n">17</span><span class="kw">const</span> <span class="ty">COLORREF</span> <span class="cs">FLOOR_LINE_COLOR</span>  = <span class="fn">RGB</span>(<span class="nm">205</span>, <span class="nm">196</span>, <span class="nm">176</span>);</span><span class="l "><span class="n">18</span><span class="kw">const</span> <span class="ty">COLORREF</span> <span class="cs">WALL_COLOR</span>        = <span class="fn">RGB</span>(<span class="nm">70</span>, <span class="nm">78</span>, <span class="nm">102</span>);</span><span class="l "><span class="n">19</span><span class="kw">const</span> <span class="ty">COLORREF</span> <span class="cs">WALL_TOP_COLOR</span>    = <span class="fn">RGB</span>(<span class="nm">98</span>, <span class="nm">108</span>, <span class="nm">138</span>);</span><span class="l "><span class="n">20</span><span class="kw">const</span> <span class="ty">COLORREF</span> <span class="cs">GOAL_COLOR</span>        = <span class="fn">RGB</span>(<span class="nm">214</span>, <span class="nm">90</span>, <span class="nm">80</span>);</span><span class="l "><span class="n">21</span><span class="kw">const</span> <span class="ty">COLORREF</span> <span class="cs">BOX_COLOR</span>         = <span class="fn">RGB</span>(<span class="nm">196</span>, <span class="nm">142</span>, <span class="nm">72</span>);</span><span class="l "><span class="n">22</span><span class="kw">const</span> <span class="ty">COLORREF</span> <span class="cs">BOX_EDGE_COLOR</span>    = <span class="fn">RGB</span>(<span class="nm">120</span>, <span class="nm">80</span>, <span class="nm">36</span>);</span><span class="l "><span class="n">23</span><span class="kw">const</span> <span class="ty">COLORREF</span> <span class="cs">BOX_OK_COLOR</span>      = <span class="fn">RGB</span>(<span class="nm">92</span>, <span class="nm">170</span>, <span class="nm">110</span>);</span><span class="l "><span class="n">24</span><span class="kw">const</span> <span class="ty">COLORREF</span> <span class="cs">BOX_OK_EDGE_COLOR</span> = <span class="fn">RGB</span>(<span class="nm">48</span>, <span class="nm">110</span>, <span class="nm">64</span>);</span><span class="l add"><span class="n">25</span><span class="kw">const</span> <span class="ty">COLORREF</span> <span class="cs">CLEAR_TEXT_COLOR</span>  = <span class="fn">RGB</span>(<span class="nm">255</span>, <span class="nm">255</span>, <span class="nm">255</span>);</span><span class="l add"><span class="n">26</span><span class="kw">const</span> <span class="ty">COLORREF</span> <span class="cs">CLEAR_BACK_COLOR</span>  = <span class="fn">RGB</span>(<span class="nm">48</span>, <span class="nm">142</span>, <span class="nm">88</span>);</span><span class="l "><span class="n">27</span><span class="kw">const</span> <span class="ty">COLORREF</span> <span class="cs">PLAYER_COLOR</span>      = <span class="fn">RGB</span>(<span class="nm">64</span>, <span class="nm">128</span>, <span class="nm">220</span>);</span><span class="l "><span class="n">28</span><span class="kw">const</span> <span class="ty">COLORREF</span> <span class="cs">PLAYER_EDGE_COLOR</span> = <span class="fn">RGB</span>(<span class="nm">30</span>, <span class="nm">70</span>, <span class="nm">150</span>);</span><span class="l "><span class="n">29</span></span><span class="l "><span class="n">30</span><span class="ty">char</span> g_tile[<span class="cs">MAP_H</span>][<span class="cs">MAP_W</span>];  <span class="cm">// &#x27;#&#x27; 벽, &#x27; &#x27; 바닥, &#x27;.&#x27; 목표</span></span><span class="l "><span class="n">31</span><span class="ty">bool</span> g_box[<span class="cs">MAP_H</span>][<span class="cs">MAP_W</span>];</span><span class="l "><span class="n">32</span><span class="ty">int</span> g_playerX = <span class="nm">0</span>;</span><span class="l "><span class="n">33</span><span class="ty">int</span> g_playerY = <span class="nm">0</span>;</span><span class="l "><span class="n">34</span></span><span class="l "><span class="n">35</span><span class="ty">void</span> <span class="fn">LoadLevel</span>()</span><span class="l "><span class="n">36</span>{</span><span class="l "><span class="n">37</span>    <span class="kw">for</span> (<span class="ty">int</span> y = <span class="nm">0</span>; y &lt; <span class="cs">MAP_H</span>; y++)</span><span class="l "><span class="n">38</span>    {</span><span class="l "><span class="n">39</span>        <span class="kw">for</span> (<span class="ty">int</span> x = <span class="nm">0</span>; x &lt; <span class="cs">MAP_W</span>; x++)</span><span class="l "><span class="n">40</span>        {</span><span class="l "><span class="n">41</span>            <span class="ty">char</span> c = <span class="cs">LEVEL</span>[y][x];</span><span class="l "><span class="n">42</span>            g_tile[y][x] = (c == <span class="str">&#x27;</span><span class="str">#</span><span class="str">&#x27;</span> || c == <span class="str">&#x27;</span><span class="str">.</span><span class="str">&#x27;</span>) ? c : <span class="str">&#x27;</span><span class="str"> </span><span class="str">&#x27;</span>;</span><span class="l "><span class="n">43</span>            g_box[y][x] = (c == <span class="str">&#x27;</span><span class="str">$</span><span class="str">&#x27;</span>);</span><span class="l "><span class="n">44</span>            <span class="kw">if</span> (c == <span class="str">&#x27;</span><span class="str">@</span><span class="str">&#x27;</span>)</span><span class="l "><span class="n">45</span>            {</span><span class="l "><span class="n">46</span>                g_playerX = x;</span><span class="l "><span class="n">47</span>                g_playerY = y;</span><span class="l "><span class="n">48</span>            }</span><span class="l "><span class="n">49</span>        }</span><span class="l "><span class="n">50</span>    }</span><span class="l "><span class="n">51</span>}</span><span class="l "><span class="n">52</span></span><span class="l "><span class="n">53</span><span class="ty">void</span> <span class="fn">FillColor</span>(<span class="ty">HDC</span> hdc, <span class="ty">RECT</span> r, <span class="ty">COLORREF</span> color)</span><span class="l "><span class="n">54</span>{</span><span class="l "><span class="n">55</span>    <span class="ty">HBRUSH</span> brush = <span class="fn">CreateSolidBrush</span>(color);</span><span class="l "><span class="n">56</span>    <span class="fn">FillRect</span>(hdc, &amp;r, brush);</span><span class="l "><span class="n">57</span>    <span class="fn">DeleteObject</span>(brush);</span><span class="l "><span class="n">58</span>}</span><span class="l "><span class="n">59</span></span><span class="l "><span class="n">60</span><span class="ty">void</span> <span class="fn">FrameColor</span>(<span class="ty">HDC</span> hdc, <span class="ty">RECT</span> r, <span class="ty">COLORREF</span> color)</span><span class="l "><span class="n">61</span>{</span><span class="l "><span class="n">62</span>    <span class="ty">HBRUSH</span> brush = <span class="fn">CreateSolidBrush</span>(color);</span><span class="l "><span class="n">63</span>    <span class="fn">FrameRect</span>(hdc, &amp;r, brush);</span><span class="l "><span class="n">64</span>    <span class="fn">DeleteObject</span>(brush);</span><span class="l "><span class="n">65</span>}</span><span class="l "><span class="n">66</span></span><span class="l "><span class="n">67</span><span class="ty">void</span> <span class="fn">DrawShape</span>(<span class="ty">HDC</span> hdc, <span class="ty">RECT</span> r, <span class="ty">COLORREF</span> fill, <span class="ty">COLORREF</span> edge, <span class="ty">bool</span> circle)</span><span class="l "><span class="n">68</span>{</span><span class="l "><span class="n">69</span>    <span class="ty">HBRUSH</span> brush = <span class="fn">CreateSolidBrush</span>(fill);</span><span class="l "><span class="n">70</span>    <span class="ty">HPEN</span> pen = <span class="fn">CreatePen</span>(<span class="cs">PS_SOLID</span>, <span class="nm">4</span>, edge);</span><span class="l "><span class="n">71</span>    <span class="ty">HGDIOBJ</span> oldBrush = <span class="fn">SelectObject</span>(hdc, brush);</span><span class="l "><span class="n">72</span>    <span class="ty">HGDIOBJ</span> oldPen = <span class="fn">SelectObject</span>(hdc, pen);</span><span class="l "><span class="n">73</span></span><span class="l "><span class="n">74</span>    <span class="kw">if</span> (circle)</span><span class="l "><span class="n">75</span>        <span class="fn">Ellipse</span>(hdc, r.left, r.top, r.right, r.bottom);</span><span class="l "><span class="n">76</span>    <span class="kw">else</span></span><span class="l "><span class="n">77</span>        <span class="fn">Rectangle</span>(hdc, r.left, r.top, r.right, r.bottom);</span><span class="l "><span class="n">78</span></span><span class="l "><span class="n">79</span>    <span class="fn">SelectObject</span>(hdc, oldBrush);</span><span class="l "><span class="n">80</span>    <span class="fn">SelectObject</span>(hdc, oldPen);</span><span class="l "><span class="n">81</span>    <span class="fn">DeleteObject</span>(brush);</span><span class="l "><span class="n">82</span>    <span class="fn">DeleteObject</span>(pen);</span><span class="l "><span class="n">83</span>}</span><span class="l "><span class="n">84</span></span><span class="l "><span class="n">85</span><span class="ty">RECT</span> <span class="fn">TileRect</span>(<span class="ty">int</span> x, <span class="ty">int</span> y)</span><span class="l "><span class="n">86</span>{</span><span class="l "><span class="n">87</span>    <span class="kw">return</span> { x * <span class="cs">TILE</span>, y * <span class="cs">TILE</span>, (x + <span class="nm">1</span>) * <span class="cs">TILE</span>, (y + <span class="nm">1</span>) * <span class="cs">TILE</span> };</span><span class="l "><span class="n">88</span>}</span><span class="l "><span class="n">89</span></span><span class="l "><span class="n">90</span><span class="ty">void</span> <span class="fn">DrawTile</span>(<span class="ty">HDC</span> hdc, <span class="ty">int</span> x, <span class="ty">int</span> y)</span><span class="l "><span class="n">91</span>{</span><span class="l "><span class="n">92</span>    <span class="ty">RECT</span> r = <span class="fn">TileRect</span>(x, y);</span><span class="l "><span class="n">93</span>    <span class="kw">if</span> (g_tile[y][x] == <span class="str">&#x27;</span><span class="str">#</span><span class="str">&#x27;</span>)</span><span class="l "><span class="n">94</span>    {</span><span class="l "><span class="n">95</span>        <span class="ty">RECT</span> top = { r.left, r.top, r.right, r.top + <span class="nm">12</span> };</span><span class="l "><span class="n">96</span>        <span class="fn">FillColor</span>(hdc, r, <span class="cs">WALL_COLOR</span>);</span><span class="l "><span class="n">97</span>        <span class="fn">FillColor</span>(hdc, top, <span class="cs">WALL_TOP_COLOR</span>);</span><span class="l "><span class="n">98</span>        <span class="kw">return</span>;</span><span class="l "><span class="n">99</span>    }</span><span class="l "><span class="n">100</span></span><span class="l "><span class="n">101</span>    <span class="fn">FillColor</span>(hdc, r, <span class="cs">FLOOR_COLOR</span>);</span><span class="l "><span class="n">102</span>    <span class="fn">FrameColor</span>(hdc, r, <span class="cs">FLOOR_LINE_COLOR</span>);</span><span class="l "><span class="n">103</span>    <span class="kw">if</span> (g_tile[y][x] == <span class="str">&#x27;</span><span class="str">.</span><span class="str">&#x27;</span>)</span><span class="l "><span class="n">104</span>    {</span><span class="l "><span class="n">105</span>        <span class="ty">RECT</span> dot = r;</span><span class="l "><span class="n">106</span>        <span class="fn">InflateRect</span>(&amp;dot, <span class="nm">-28</span>, <span class="nm">-28</span>);</span><span class="l "><span class="n">107</span>        <span class="fn">DrawShape</span>(hdc, dot, <span class="cs">GOAL_COLOR</span>, <span class="cs">GOAL_COLOR</span>, true);</span><span class="l "><span class="n">108</span>    }</span><span class="l "><span class="n">109</span>}</span><span class="l "><span class="n">110</span></span><span class="l "><span class="n">111</span><span class="ty">void</span> <span class="fn">DrawBox</span>(<span class="ty">HDC</span> hdc, <span class="ty">int</span> x, <span class="ty">int</span> y)</span><span class="l "><span class="n">112</span>{</span><span class="l "><span class="n">113</span>    <span class="ty">RECT</span> box = <span class="fn">TileRect</span>(x, y);</span><span class="l "><span class="n">114</span>    <span class="fn">InflateRect</span>(&amp;box, <span class="nm">-10</span>, <span class="nm">-10</span>);</span><span class="l "><span class="n">115</span>    <span class="kw">if</span> (g_tile[y][x] == <span class="str">&#x27;</span><span class="str">.</span><span class="str">&#x27;</span>)</span><span class="l "><span class="n">116</span>        <span class="fn">DrawShape</span>(hdc, box, <span class="cs">BOX_OK_COLOR</span>, <span class="cs">BOX_OK_EDGE_COLOR</span>, false);</span><span class="l "><span class="n">117</span>    <span class="kw">else</span></span><span class="l "><span class="n">118</span>        <span class="fn">DrawShape</span>(hdc, box, <span class="cs">BOX_COLOR</span>, <span class="cs">BOX_EDGE_COLOR</span>, false);</span><span class="l "><span class="n">119</span>}</span><span class="l "><span class="n">120</span></span><span class="l add"><span class="n">121</span><span class="ty">void</span> <span class="fn">DrawClear</span>(<span class="ty">HDC</span> hdc)</span><span class="l add"><span class="n">122</span>{</span><span class="l add"><span class="n">123</span>    <span class="ty">int</span> mid = <span class="cs">MAP_H</span> * <span class="cs">TILE</span> / <span class="nm">2</span>;</span><span class="l add"><span class="n">124</span>    <span class="ty">RECT</span> banner = { <span class="nm">0</span>, mid - <span class="nm">60</span>, <span class="cs">MAP_W</span> * <span class="cs">TILE</span>, mid + <span class="nm">60</span> };</span><span class="l add"><span class="n">125</span>    <span class="fn">FillColor</span>(hdc, banner, <span class="cs">CLEAR_BACK_COLOR</span>);</span><span class="l add"><span class="n">126</span></span><span class="l add"><span class="n">127</span>    <span class="cs">HFONT</span> font = <span class="fn">CreateFontW</span>(<span class="nm">64</span>, <span class="nm">0</span>, <span class="nm">0</span>, <span class="nm">0</span>, <span class="cs">FW_BOLD</span>, <span class="cs">FALSE</span>, <span class="cs">FALSE</span>, <span class="cs">FALSE</span>,</span><span class="l add"><span class="n">128</span>                             <span class="cs">DEFAULT_CHARSET</span>, <span class="nm">0</span>, <span class="nm">0</span>, <span class="nm">0</span>, <span class="nm">0</span>, <span class="str">L</span><span class="str">&quot;</span><span class="str">Segoe UI</span><span class="str">&quot;</span>);</span><span class="l add"><span class="n">129</span>    <span class="ty">HGDIOBJ</span> oldFont = <span class="fn">SelectObject</span>(hdc, font);</span><span class="l add"><span class="n">130</span>    <span class="fn">SetTextColor</span>(hdc, <span class="cs">CLEAR_TEXT_COLOR</span>);</span><span class="l add"><span class="n">131</span>    <span class="fn">SetBkMode</span>(hdc, <span class="cs">TRANSPARENT</span>);</span><span class="l add"><span class="n">132</span>    <span class="fn">DrawTextW</span>(hdc, <span class="str">L</span><span class="str">&quot;</span><span class="str">CLEAR!  (R: 다시)</span><span class="str">&quot;</span>, <span class="nm">-1</span>, &amp;banner,</span><span class="l add"><span class="n">133</span>              <span class="cs">DT_CENTER</span> | <span class="cs">DT_VCENTER</span> | <span class="cs">DT_SINGLELINE</span>);</span><span class="l add"><span class="n">134</span>    <span class="fn">SelectObject</span>(hdc, oldFont);</span><span class="l add"><span class="n">135</span>    <span class="fn">DeleteObject</span>(font);</span><span class="l add"><span class="n">136</span>}</span><span class="l add"><span class="n">137</span></span><span class="l "><span class="n">138</span><span class="ty">void</span> <span class="fn">DrawMap</span>(<span class="ty">HDC</span> hdc)</span><span class="l "><span class="n">139</span>{</span><span class="l "><span class="n">140</span>    <span class="kw">for</span> (<span class="ty">int</span> y = <span class="nm">0</span>; y &lt; <span class="cs">MAP_H</span>; y++)</span><span class="l "><span class="n">141</span>    {</span><span class="l "><span class="n">142</span>        <span class="kw">for</span> (<span class="ty">int</span> x = <span class="nm">0</span>; x &lt; <span class="cs">MAP_W</span>; x++)</span><span class="l "><span class="n">143</span>        {</span><span class="l "><span class="n">144</span>            <span class="fn">DrawTile</span>(hdc, x, y);</span><span class="l "><span class="n">145</span>            <span class="kw">if</span> (g_box[y][x])</span><span class="l "><span class="n">146</span>                <span class="fn">DrawBox</span>(hdc, x, y);</span><span class="l "><span class="n">147</span>        }</span><span class="l "><span class="n">148</span>    }</span><span class="l "><span class="n">149</span>}</span><span class="l "><span class="n">150</span></span><span class="l "><span class="n">151</span><span class="ty">void</span> <span class="fn">DrawPlayer</span>(<span class="ty">HDC</span> hdc)</span><span class="l "><span class="n">152</span>{</span><span class="l "><span class="n">153</span>    <span class="ty">RECT</span> player = <span class="fn">TileRect</span>(g_playerX, g_playerY);</span><span class="l "><span class="n">154</span>    <span class="fn">InflateRect</span>(&amp;player, <span class="nm">-14</span>, <span class="nm">-14</span>);</span><span class="l "><span class="n">155</span>    <span class="fn">DrawShape</span>(hdc, player, <span class="cs">PLAYER_COLOR</span>, <span class="cs">PLAYER_EDGE_COLOR</span>, true);</span><span class="l "><span class="n">156</span>}</span><span class="l "><span class="n">157</span></span><span class="l "><span class="n">158</span><span class="ty">bool</span> <span class="fn">IsWall</span>(<span class="ty">int</span> x, <span class="ty">int</span> y)</span><span class="l "><span class="n">159</span>{</span><span class="l "><span class="n">160</span>    <span class="kw">return</span> g_tile[y][x] == <span class="str">&#x27;</span><span class="str">#</span><span class="str">&#x27;</span>;</span><span class="l add"><span class="n">161</span>}</span><span class="l add"><span class="n">162</span></span><span class="l add"><span class="n">163</span><span class="ty">bool</span> <span class="fn">IsCleared</span>()</span><span class="l add"><span class="n">164</span>{</span><span class="l add"><span class="n">165</span>    <span class="kw">for</span> (<span class="ty">int</span> y = <span class="nm">0</span>; y &lt; <span class="cs">MAP_H</span>; y++)</span><span class="l add"><span class="n">166</span>        <span class="kw">for</span> (<span class="ty">int</span> x = <span class="nm">0</span>; x &lt; <span class="cs">MAP_W</span>; x++)</span><span class="l add"><span class="n">167</span>            <span class="kw">if</span> (g_box[y][x] &amp;&amp; g_tile[y][x] != <span class="str">&#x27;</span><span class="str">.</span><span class="str">&#x27;</span>)</span><span class="l add"><span class="n">168</span>                <span class="kw">return</span> false;</span><span class="l add"><span class="n">169</span>    <span class="kw">return</span> true;</span><span class="l "><span class="n">170</span>}</span><span class="l "><span class="n">171</span></span><span class="l "><span class="n">172</span><span class="ty">void</span> <span class="fn">TryMove</span>(<span class="ty">int</span> dx, <span class="ty">int</span> dy)</span><span class="l "><span class="n">173</span>{</span><span class="l "><span class="n">174</span>    <span class="ty">int</span> nx = g_playerX + dx;</span><span class="l "><span class="n">175</span>    <span class="ty">int</span> ny = g_playerY + dy;</span><span class="l "><span class="n">176</span>    <span class="kw">if</span> (<span class="fn">IsWall</span>(nx, ny))</span><span class="l "><span class="n">177</span>        <span class="kw">return</span>;</span><span class="l "><span class="n">178</span></span><span class="l "><span class="n">179</span>    <span class="kw">if</span> (g_box[ny][nx])</span><span class="l "><span class="n">180</span>    {</span><span class="l "><span class="n">181</span>        <span class="ty">int</span> bx = nx + dx;</span><span class="l "><span class="n">182</span>        <span class="ty">int</span> by = ny + dy;</span><span class="l "><span class="n">183</span>        <span class="kw">if</span> (<span class="fn">IsWall</span>(bx, by) || g_box[by][bx])</span><span class="l "><span class="n">184</span>            <span class="kw">return</span>;</span><span class="l "><span class="n">185</span></span><span class="l "><span class="n">186</span>        g_box[ny][nx] = false;</span><span class="l "><span class="n">187</span>        g_box[by][bx] = true;</span><span class="l "><span class="n">188</span>    }</span><span class="l "><span class="n">189</span></span><span class="l "><span class="n">190</span>    g_playerX = nx;</span><span class="l "><span class="n">191</span>    g_playerY = ny;</span><span class="l "><span class="n">192</span>}</span><span class="l "><span class="n">193</span></span><span class="l "><span class="n">194</span><span class="ty">LRESULT</span> <span class="cs">CALLBACK</span> <span class="fn">WndProc</span>(<span class="ty">HWND</span> hWnd, <span class="ty">UINT</span> msg, <span class="ty">WPARAM</span> wParam, <span class="ty">LPARAM</span> lParam)</span><span class="l "><span class="n">195</span>{</span><span class="l "><span class="n">196</span>    <span class="kw">switch</span> (msg)</span><span class="l "><span class="n">197</span>    {</span><span class="l "><span class="n">198</span>    <span class="kw">case</span> <span class="cs">WM_KEYDOWN</span>:</span><span class="l "><span class="n">199</span>        <span class="kw">switch</span> (wParam)</span><span class="l "><span class="n">200</span>        {</span><span class="l "><span class="n">201</span>        <span class="kw">case</span> <span class="cs">VK_LEFT</span>:   <span class="fn">TryMove</span>(<span class="nm">-1</span>, <span class="nm">0</span>); <span class="kw">break</span>;</span><span class="l "><span class="n">202</span>        <span class="kw">case</span> <span class="cs">VK_RIGHT</span>:  <span class="fn">TryMove</span>(<span class="nm">1</span>, <span class="nm">0</span>); <span class="kw">break</span>;</span><span class="l "><span class="n">203</span>        <span class="kw">case</span> <span class="cs">VK_UP</span>:     <span class="fn">TryMove</span>(<span class="nm">0</span>, <span class="nm">-1</span>); <span class="kw">break</span>;</span><span class="l "><span class="n">204</span>        <span class="kw">case</span> <span class="cs">VK_DOWN</span>:   <span class="fn">TryMove</span>(<span class="nm">0</span>, <span class="nm">1</span>); <span class="kw">break</span>;</span><span class="l add"><span class="n">205</span>        <span class="kw">case</span> <span class="str">&#x27;</span><span class="str">R</span><span class="str">&#x27;</span>:       <span class="fn">LoadLevel</span>(); <span class="kw">break</span>;</span><span class="l "><span class="n">206</span>        <span class="kw">case</span> <span class="cs">VK_ESCAPE</span>: <span class="fn">DestroyWindow</span>(hWnd); <span class="kw">return</span> <span class="nm">0</span>;</span><span class="l "><span class="n">207</span>        }</span><span class="l "><span class="n">208</span>        <span class="fn">InvalidateRect</span>(hWnd, nullptr, <span class="cs">TRUE</span>);</span><span class="l "><span class="n">209</span>        <span class="kw">return</span> <span class="nm">0</span>;</span><span class="l "><span class="n">210</span></span><span class="l "><span class="n">211</span>    <span class="kw">case</span> <span class="cs">WM_PAINT</span>:</span><span class="l "><span class="n">212</span>    {</span><span class="l "><span class="n">213</span>        <span class="ty">PAINTSTRUCT</span> ps;</span><span class="l "><span class="n">214</span>        <span class="ty">HDC</span> hdc = <span class="fn">BeginPaint</span>(hWnd, &amp;ps);</span><span class="l "><span class="n">215</span>        <span class="fn">DrawMap</span>(hdc);</span><span class="l "><span class="n">216</span>        <span class="fn">DrawPlayer</span>(hdc);</span><span class="l add"><span class="n">217</span>        <span class="kw">if</span> (<span class="fn">IsCleared</span>())</span><span class="l add"><span class="n">218</span>            <span class="fn">DrawClear</span>(hdc);</span><span class="l "><span class="n">219</span>        <span class="fn">EndPaint</span>(hWnd, &amp;ps);</span><span class="l "><span class="n">220</span>        <span class="kw">return</span> <span class="nm">0</span>;</span><span class="l "><span class="n">221</span>    }</span><span class="l "><span class="n">222</span></span><span class="l "><span class="n">223</span>    <span class="kw">case</span> <span class="cs">WM_DESTROY</span>:</span><span class="l "><span class="n">224</span>        <span class="fn">PostQuitMessage</span>(<span class="nm">0</span>);</span><span class="l "><span class="n">225</span>        <span class="kw">return</span> <span class="nm">0</span>;</span><span class="l "><span class="n">226</span>    }</span><span class="l "><span class="n">227</span>    <span class="kw">return</span> <span class="fn">DefWindowProcW</span>(hWnd, msg, wParam, lParam);</span><span class="l "><span class="n">228</span>}</span><span class="l "><span class="n">229</span></span><span class="l "><span class="n">230</span><span class="ty">int</span> <span class="cs">WINAPI</span> <span class="fn">wWinMain</span>(<span class="ty">HINSTANCE</span> hInstance, <span class="ty">HINSTANCE</span> hPrevInstance,</span><span class="l "><span class="n">231</span>                    <span class="ty">PWSTR</span> pCmdLine, <span class="ty">int</span> nCmdShow)</span><span class="l "><span class="n">232</span>{</span><span class="l "><span class="n">233</span>    <span class="fn">LoadLevel</span>();</span><span class="l "><span class="n">234</span></span><span class="l "><span class="n">235</span>    <span class="ty">WNDCLASSEXW</span> wc = {};</span><span class="l "><span class="n">236</span>    wc.cbSize = <span class="kw">sizeof</span>(wc);</span><span class="l "><span class="n">237</span>    wc.lpfnWndProc = WndProc;</span><span class="l "><span class="n">238</span>    wc.hInstance = hInstance;</span><span class="l "><span class="n">239</span>    wc.hCursor = <span class="fn">LoadCursorW</span>(nullptr, <span class="cs">IDC_ARROW</span>);</span><span class="l "><span class="n">240</span>    wc.hbrBackground = (<span class="ty">HBRUSH</span>)(<span class="cs">COLOR_WINDOW</span> + <span class="nm">1</span>);</span><span class="l "><span class="n">241</span>    wc.lpszClassName = <span class="str">L</span><span class="str">&quot;</span><span class="str">SokobanWindow</span><span class="str">&quot;</span>;</span><span class="l "><span class="n">242</span>    <span class="fn">RegisterClassExW</span>(&amp;wc);</span><span class="l "><span class="n">243</span></span><span class="l "><span class="n">244</span>    <span class="ty">RECT</span> rc = { <span class="nm">0</span>, <span class="nm">0</span>, <span class="cs">MAP_W</span> * <span class="cs">TILE</span>, <span class="cs">MAP_H</span> * <span class="cs">TILE</span> };</span><span class="l "><span class="n">245</span>    <span class="fn">AdjustWindowRect</span>(&amp;rc, <span class="cs">WS_OVERLAPPEDWINDOW</span>, <span class="cs">FALSE</span>);</span><span class="l "><span class="n">246</span>    <span class="ty">int</span> width = rc.right - rc.left;</span><span class="l "><span class="n">247</span>    <span class="ty">int</span> height = rc.bottom - rc.top;</span><span class="l "><span class="n">248</span></span><span class="l "><span class="n">249</span>    <span class="ty">HWND</span> hWnd = <span class="fn">CreateWindowExW</span>(<span class="nm">0</span>, <span class="str">L</span><span class="str">&quot;</span><span class="str">SokobanWindow</span><span class="str">&quot;</span>, <span class="str">L</span><span class="str">&quot;</span><span class="str">Sokoban</span><span class="str">&quot;</span>,</span><span class="l "><span class="n">250</span>                                <span class="cs">WS_OVERLAPPEDWINDOW</span>,</span><span class="l "><span class="n">251</span>                                <span class="cs">CW_USEDEFAULT</span>, <span class="cs">CW_USEDEFAULT</span>, width, height,</span><span class="l "><span class="n">252</span>                                nullptr, nullptr, hInstance, nullptr);</span><span class="l "><span class="n">253</span>    <span class="fn">ShowWindow</span>(hWnd, nCmdShow);</span><span class="l "><span class="n">254</span>    <span class="fn">UpdateWindow</span>(hWnd);</span><span class="l "><span class="n">255</span></span><span class="l "><span class="n">256</span>    <span class="ty">MSG</span> msg;</span><span class="l "><span class="n">257</span>    <span class="kw">while</span> (<span class="fn">GetMessageW</span>(&amp;msg, nullptr, <span class="nm">0</span>, <span class="nm">0</span>) &gt; <span class="nm">0</span>)</span><span class="l "><span class="n">258</span>    {</span><span class="l "><span class="n">259</span>        <span class="fn">TranslateMessage</span>(&amp;msg);</span><span class="l "><span class="n">260</span>        <span class="fn">DispatchMessageW</span>(&amp;msg);</span><span class="l "><span class="n">261</span>    }</span><span class="l "><span class="n">262</span>    <span class="kw">return</span> (<span class="ty">int</span>)msg.wParam;</span><span class="l "><span class="n">263</span>}</span></pre></div><textarea id="raw" hidden>#include &lt;windows.h&gt;
+
+const int TILE = 80;
+const int MAP_W = 9;
+const int MAP_H = 6;
+
+const char* LEVEL[MAP_H] = {
+    &quot;#########&quot;,
+    &quot;#  .#   #&quot;,
+    &quot;# # .   #&quot;,
+    &quot;# $ .$$ #&quot;,
+    &quot;## ##@ ##&quot;,
+    &quot;#########&quot;,
+};
+
+const COLORREF FLOOR_COLOR       = RGB(222, 214, 196);
+const COLORREF FLOOR_LINE_COLOR  = RGB(205, 196, 176);
+const COLORREF WALL_COLOR        = RGB(70, 78, 102);
+const COLORREF WALL_TOP_COLOR    = RGB(98, 108, 138);
+const COLORREF GOAL_COLOR        = RGB(214, 90, 80);
+const COLORREF BOX_COLOR         = RGB(196, 142, 72);
+const COLORREF BOX_EDGE_COLOR    = RGB(120, 80, 36);
+const COLORREF BOX_OK_COLOR      = RGB(92, 170, 110);
+const COLORREF BOX_OK_EDGE_COLOR = RGB(48, 110, 64);
+const COLORREF CLEAR_TEXT_COLOR  = RGB(255, 255, 255);
+const COLORREF CLEAR_BACK_COLOR  = RGB(48, 142, 88);
+const COLORREF PLAYER_COLOR      = RGB(64, 128, 220);
+const COLORREF PLAYER_EDGE_COLOR = RGB(30, 70, 150);
+
+char g_tile[MAP_H][MAP_W];  // &#x27;#&#x27; 벽, &#x27; &#x27; 바닥, &#x27;.&#x27; 목표
+bool g_box[MAP_H][MAP_W];
+int g_playerX = 0;
+int g_playerY = 0;
+
+void LoadLevel()
+{
+    for (int y = 0; y &lt; MAP_H; y++)
+    {
+        for (int x = 0; x &lt; MAP_W; x++)
+        {
+            char c = LEVEL[y][x];
+            g_tile[y][x] = (c == &#x27;#&#x27; || c == &#x27;.&#x27;) ? c : &#x27; &#x27;;
+            g_box[y][x] = (c == &#x27;$&#x27;);
+            if (c == &#x27;@&#x27;)
+            {
+                g_playerX = x;
+                g_playerY = y;
+            }
+        }
+    }
+}
+
+void FillColor(HDC hdc, RECT r, COLORREF color)
+{
+    HBRUSH brush = CreateSolidBrush(color);
+    FillRect(hdc, &amp;r, brush);
+    DeleteObject(brush);
+}
+
+void FrameColor(HDC hdc, RECT r, COLORREF color)
+{
+    HBRUSH brush = CreateSolidBrush(color);
+    FrameRect(hdc, &amp;r, brush);
+    DeleteObject(brush);
+}
+
+void DrawShape(HDC hdc, RECT r, COLORREF fill, COLORREF edge, bool circle)
+{
+    HBRUSH brush = CreateSolidBrush(fill);
+    HPEN pen = CreatePen(PS_SOLID, 4, edge);
+    HGDIOBJ oldBrush = SelectObject(hdc, brush);
+    HGDIOBJ oldPen = SelectObject(hdc, pen);
+
+    if (circle)
+        Ellipse(hdc, r.left, r.top, r.right, r.bottom);
+    else
+        Rectangle(hdc, r.left, r.top, r.right, r.bottom);
+
+    SelectObject(hdc, oldBrush);
+    SelectObject(hdc, oldPen);
+    DeleteObject(brush);
+    DeleteObject(pen);
+}
+
+RECT TileRect(int x, int y)
+{
+    return { x * TILE, y * TILE, (x + 1) * TILE, (y + 1) * TILE };
+}
+
+void DrawTile(HDC hdc, int x, int y)
+{
+    RECT r = TileRect(x, y);
+    if (g_tile[y][x] == &#x27;#&#x27;)
+    {
+        RECT top = { r.left, r.top, r.right, r.top + 12 };
+        FillColor(hdc, r, WALL_COLOR);
+        FillColor(hdc, top, WALL_TOP_COLOR);
+        return;
+    }
+
+    FillColor(hdc, r, FLOOR_COLOR);
+    FrameColor(hdc, r, FLOOR_LINE_COLOR);
+    if (g_tile[y][x] == &#x27;.&#x27;)
+    {
+        RECT dot = r;
+        InflateRect(&amp;dot, -28, -28);
+        DrawShape(hdc, dot, GOAL_COLOR, GOAL_COLOR, true);
+    }
+}
+
+void DrawBox(HDC hdc, int x, int y)
+{
+    RECT box = TileRect(x, y);
+    InflateRect(&amp;box, -10, -10);
+    if (g_tile[y][x] == &#x27;.&#x27;)
+        DrawShape(hdc, box, BOX_OK_COLOR, BOX_OK_EDGE_COLOR, false);
+    else
+        DrawShape(hdc, box, BOX_COLOR, BOX_EDGE_COLOR, false);
+}
+
+void DrawClear(HDC hdc)
+{
+    int mid = MAP_H * TILE / 2;
+    RECT banner = { 0, mid - 60, MAP_W * TILE, mid + 60 };
+    FillColor(hdc, banner, CLEAR_BACK_COLOR);
+
+    HFONT font = CreateFontW(64, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE,
+                             DEFAULT_CHARSET, 0, 0, 0, 0, L&quot;Segoe UI&quot;);
+    HGDIOBJ oldFont = SelectObject(hdc, font);
+    SetTextColor(hdc, CLEAR_TEXT_COLOR);
+    SetBkMode(hdc, TRANSPARENT);
+    DrawTextW(hdc, L&quot;CLEAR!  (R: 다시)&quot;, -1, &amp;banner,
+              DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+    SelectObject(hdc, oldFont);
+    DeleteObject(font);
+}
+
+void DrawMap(HDC hdc)
+{
+    for (int y = 0; y &lt; MAP_H; y++)
+    {
+        for (int x = 0; x &lt; MAP_W; x++)
+        {
+            DrawTile(hdc, x, y);
+            if (g_box[y][x])
+                DrawBox(hdc, x, y);
+        }
+    }
+}
+
+void DrawPlayer(HDC hdc)
+{
+    RECT player = TileRect(g_playerX, g_playerY);
+    InflateRect(&amp;player, -14, -14);
+    DrawShape(hdc, player, PLAYER_COLOR, PLAYER_EDGE_COLOR, true);
+}
+
+bool IsWall(int x, int y)
+{
+    return g_tile[y][x] == &#x27;#&#x27;;
+}
+
+bool IsCleared()
+{
+    for (int y = 0; y &lt; MAP_H; y++)
+        for (int x = 0; x &lt; MAP_W; x++)
+            if (g_box[y][x] &amp;&amp; g_tile[y][x] != &#x27;.&#x27;)
+                return false;
+    return true;
+}
+
+void TryMove(int dx, int dy)
+{
+    int nx = g_playerX + dx;
+    int ny = g_playerY + dy;
+    if (IsWall(nx, ny))
+        return;
+
+    if (g_box[ny][nx])
+    {
+        int bx = nx + dx;
+        int by = ny + dy;
+        if (IsWall(bx, by) || g_box[by][bx])
+            return;
+
+        g_box[ny][nx] = false;
+        g_box[by][bx] = true;
+    }
+
+    g_playerX = nx;
+    g_playerY = ny;
+}
+
+LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+    switch (msg)
+    {
+    case WM_KEYDOWN:
+        switch (wParam)
+        {
+        case VK_LEFT:   TryMove(-1, 0); break;
+        case VK_RIGHT:  TryMove(1, 0); break;
+        case VK_UP:     TryMove(0, -1); break;
+        case VK_DOWN:   TryMove(0, 1); break;
+        case &#x27;R&#x27;:       LoadLevel(); break;
+        case VK_ESCAPE: DestroyWindow(hWnd); return 0;
+        }
+        InvalidateRect(hWnd, nullptr, TRUE);
+        return 0;
+
+    case WM_PAINT:
+    {
+        PAINTSTRUCT ps;
+        HDC hdc = BeginPaint(hWnd, &amp;ps);
+        DrawMap(hdc);
+        DrawPlayer(hdc);
+        if (IsCleared())
+            DrawClear(hdc);
+        EndPaint(hWnd, &amp;ps);
+        return 0;
+    }
+
+    case WM_DESTROY:
+        PostQuitMessage(0);
+        return 0;
+    }
+    return DefWindowProcW(hWnd, msg, wParam, lParam);
+}
+
+int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
+                    PWSTR pCmdLine, int nCmdShow)
+{
+    LoadLevel();
+
+    WNDCLASSEXW wc = {};
+    wc.cbSize = sizeof(wc);
+    wc.lpfnWndProc = WndProc;
+    wc.hInstance = hInstance;
+    wc.hCursor = LoadCursorW(nullptr, IDC_ARROW);
+    wc.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
+    wc.lpszClassName = L&quot;SokobanWindow&quot;;
+    RegisterClassExW(&amp;wc);
+
+    RECT rc = { 0, 0, MAP_W * TILE, MAP_H * TILE };
+    AdjustWindowRect(&amp;rc, WS_OVERLAPPEDWINDOW, FALSE);
+    int width = rc.right - rc.left;
+    int height = rc.bottom - rc.top;
+
+    HWND hWnd = CreateWindowExW(0, L&quot;SokobanWindow&quot;, L&quot;Sokoban&quot;,
+                                WS_OVERLAPPEDWINDOW,
+                                CW_USEDEFAULT, CW_USEDEFAULT, width, height,
+                                nullptr, nullptr, hInstance, nullptr);
+    ShowWindow(hWnd, nCmdShow);
+    UpdateWindow(hWnd);
+
+    MSG msg;
+    while (GetMessageW(&amp;msg, nullptr, 0, 0) &gt; 0)
+    {
+        TranslateMessage(&amp;msg);
+        DispatchMessageW(&amp;msg);
+    }
+    return (int)msg.wParam;
+}
+</textarea>
+<h2>빌드 방법</h2><p><b>Visual Studio</b></p><ol class="steps"><li>새 프로젝트 → <b>Windows 데스크톱 애플리케이션</b> 또는 <b>빈 프로젝트</b></li><li>생성된 소스를 지우고 이 페이지의 <code class="inl">main.cpp</code> 를 추가</li><li>빈 프로젝트라면 속성 → 링커 → 시스템 → 하위 시스템을 <b>창(/SUBSYSTEM:WINDOWS)</b> 으로</li><li>Ctrl+F5 로 실행</li></ol><p><b>명령줄</b> (x64 Native Tools Command Prompt)</p><div class="cmd"><pre id="clcmd">cl /EHsc /std:c++20 /utf-8 /DUNICODE /D_UNICODE main.cpp /link /SUBSYSTEM:WINDOWS user32.lib gdi32.lib</pre></div><p class="lead" style="font-size:14px;margin-top:10px">코드는 흐름을 보여 주려고 에러 처리를 생략했습니다. 실제 프로그램에서는 RegisterClassExW·CreateWindowExW 의 반환값을 확인하세요.</p>
+<h2>영상 챕터</h2><ul class="chapters"><li><a href="https://www.youtube.com/watch?v=t0VH3j9FwDU&amp;t=0s"><span class="t">0:00</span>인트로</a></li><li><a href="https://www.youtube.com/watch?v=t0VH3j9FwDU&amp;t=14s"><span class="t">0:14</span>다시 시작</a></li><li><a href="https://www.youtube.com/watch?v=t0VH3j9FwDU&amp;t=74s"><span class="t">1:14</span>클리어 판정</a></li><li><a href="https://www.youtube.com/watch?v=t0VH3j9FwDU&amp;t=125s"><span class="t">2:05</span>클리어 표시</a></li><li><a href="https://www.youtube.com/watch?v=t0VH3j9FwDU&amp;t=168s"><span class="t">2:48</span>실행</a></li><li><a href="https://www.youtube.com/watch?v=t0VH3j9FwDU&amp;t=178s"><span class="t">2:58</span>정리</a></li></ul>
+<div class="nav"><a class="btn" href="../ep05/">← 5편 이동과 상자 밀기</a><a class="btn" href="../ep07/">7편 되돌리기 →</a></div>
+<footer>windwolf_clan · <a href="../">Win32로 소코반 만들기</a></footer>
+</div>
+<script>
+function copyCode(id,btn){navigator.clipboard.writeText(document.getElementById(id).textContent).then(()=>{
+ const t=btn.textContent;btn.textContent='복사됨';setTimeout(()=>btn.textContent=t,1200)})}
+function toggleMarks(btn){const p=document.getElementById('code');p.classList.toggle('nomark');
+ btn.textContent=p.classList.contains('nomark')?'변경 표시 켜기':'변경 표시 끄기'}
+</script>
+</body>
+</html>

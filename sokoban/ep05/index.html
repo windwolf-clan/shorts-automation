@@ -254,7 +254,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 </textarea>
 <h2>빌드 방법</h2><p><b>Visual Studio</b></p><ol class="steps"><li>새 프로젝트 → <b>Windows 데스크톱 애플리케이션</b> 또는 <b>빈 프로젝트</b></li><li>생성된 소스를 지우고 이 페이지의 <code class="inl">main.cpp</code> 를 추가</li><li>빈 프로젝트라면 속성 → 링커 → 시스템 → 하위 시스템을 <b>창(/SUBSYSTEM:WINDOWS)</b> 으로</li><li>Ctrl+F5 로 실행</li></ol><p><b>명령줄</b> (x64 Native Tools Command Prompt)</p><div class="cmd"><pre id="clcmd">cl /EHsc /std:c++20 /utf-8 /DUNICODE /D_UNICODE main.cpp /link /SUBSYSTEM:WINDOWS user32.lib gdi32.lib</pre></div><p class="lead" style="font-size:14px;margin-top:10px">코드는 흐름을 보여 주려고 에러 처리를 생략했습니다. 실제 프로그램에서는 RegisterClassExW·CreateWindowExW 의 반환값을 확인하세요.</p>
 <h2>영상 챕터</h2><ul class="chapters"><li><a href="https://www.youtube.com/watch?v=5uX9mho79FA&amp;t=0s"><span class="t">0:00</span>인트로</a></li><li><a href="https://www.youtube.com/watch?v=5uX9mho79FA&amp;t=14s"><span class="t">0:14</span>이동 규칙</a></li><li><a href="https://www.youtube.com/watch?v=5uX9mho79FA&amp;t=58s"><span class="t">0:58</span>벽 검사</a></li><li><a href="https://www.youtube.com/watch?v=5uX9mho79FA&amp;t=125s"><span class="t">2:05</span>상자 밀기</a></li><li><a href="https://www.youtube.com/watch?v=5uX9mho79FA&amp;t=215s"><span class="t">3:35</span>정리</a></li></ul>
-<div class="nav"><a class="btn" href="../ep04/">← 4편 맵 데이터와 그리기</a><span></span></div>
+<div class="nav"><a class="btn" href="../ep04/">← 4편 맵 데이터와 그리기</a><a class="btn" href="../ep06/">6편 클리어 판정과 재시작 →</a></div>
 <footer>windwolf_clan · <a href="../">Win32로 소코반 만들기</a></footer>
 </div>
 <script>
